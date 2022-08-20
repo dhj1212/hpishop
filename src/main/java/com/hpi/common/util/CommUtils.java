@@ -1,4 +1,4 @@
-package common.util;
+package com.hpi.common.util;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;

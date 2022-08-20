@@ -1,4 +1,4 @@
-package common.util;
+package com.hpi.common.util;
 
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;

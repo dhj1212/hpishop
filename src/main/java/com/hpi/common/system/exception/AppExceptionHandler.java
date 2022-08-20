@@ -1,6 +1,6 @@
-package common.system.exception;
+package com.hpi.common.system.exception;
 
-import common.vo.api.Result;
+import com.hpi.common.vo.api.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;

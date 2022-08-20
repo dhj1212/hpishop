@@ -31,12 +31,12 @@ public class CodeGenerator
         //String url = "jdbc:mysql://localhost:3306/hero_springboot_demo?useUnicode=true&characterEncoding=utf8&useSSL=true";
         String projectPath = System.getProperty("user.dir");
         String url = "jdbc:oracle:thin:@localhost:1521:oralin";
-        String username = "hpboot3";
-        String password = "hpboot3";
+        String username = "hpshop";
+        String password = "hpshop";
         String author = "dhj";
         //String moduleName =scanner("模块名");
-        String moduleName="syscode";
-        String tables="SYSUSER";
+        String moduleName="ydpub";
+        String tables="YD_SWIPERPIC";
 
         String outputDir = projectPath + "/src/main/java" ;
         String parentPackage = "com.hpi.modules";

@@ -5,7 +5,7 @@
  * dhj/2015_09_12/主要修改程序注释，因为程序要按照统一的JAVA编码规范
  * 
  */
-package common.system.exception;
+package com.hpi.common.system.exception;
 /**
  * Description:用于自定义异常
  * 说明：统一处理成继承父类异常

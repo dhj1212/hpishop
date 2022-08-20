@@ -1,7 +1,7 @@
-package common.util;
+package com.hpi.common.util;
 
+import com.hpi.common.system.exception.AppException;
 import com.sun.corba.se.impl.io.TypeMismatchException;
-import common.system.exception.AppException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

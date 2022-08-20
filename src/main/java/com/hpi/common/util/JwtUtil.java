@@ -1,4 +1,4 @@
-package common.util;
+package com.hpi.common.util;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTCreator;
@@ -7,8 +7,8 @@ import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.JWTDecodeException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 
-import common.CommonConstant.CommonConstant;
-import common.system.exception.AppException;
+import com.hpi.common.CommonConstant.CommonConstant;
+import com.hpi.common.system.exception.AppException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;

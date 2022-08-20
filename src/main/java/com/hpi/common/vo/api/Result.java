@@ -1,6 +1,6 @@
-package common.vo.api;
+package com.hpi.common.vo.api;
 
-import common.CommonConstant.CommonConstant;
+import com.hpi.common.CommonConstant.CommonConstant;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -26,7 +26,7 @@ public class Result<T> implements Serializable
 	 * 返回代码
 	 */
 	//@ApiModelProperty(value = "返回代码")
-	private Integer code = 0;
+	private Integer code = 200;
 	
 	//@ApiModelProperty(value = "操作代码")
 	//private Integer operate = 1;

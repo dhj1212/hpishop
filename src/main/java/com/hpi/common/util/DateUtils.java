@@ -1,6 +1,6 @@
-package common.util;
+package com.hpi.common.util;
 
-import common.system.exception.AppException;
+import com.hpi.common.system.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
 
