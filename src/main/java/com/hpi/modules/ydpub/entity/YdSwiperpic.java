@@ -67,6 +67,12 @@ public class YdSwiperpic implements Serializable {
     @TableField("PATH")
     private String path;
 
+    @TableField("LINKURL")
+    private String linkurl;
+
+    @TableField("LINKITEMID")
+    private String linkitemid;
+
     /**
      * 宽
      */
