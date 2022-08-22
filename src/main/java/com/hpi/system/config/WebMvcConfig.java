@@ -37,7 +37,7 @@ public class WebMvcConfig implements WebMvcConfigurer
 		if(!registry.hasMappingForPattern("/static/**")){
 		    registry.addResourceHandler("/static/**").addResourceLocations("classpath:/static/");
 		}
-        registry.addResourceHandler("/ydpic/**").addResourceLocations("file:D:/ydpic/");
+        registry.addResourceHandler("/yd/resources/**").addResourceLocations("file:D:/ydpic/");
         //registry.addResourceHandler("/static/photos/img/**").addResourceLocations("file:D:/static/photos/img/");
 
     }
