@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hpi.common.vo.api.Result;
 import com.hpi.modules.ydpub.entity.YdSwiperpic;
 import com.hpi.modules.ydpub.service.IYdSwiperpicService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +24,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/ydpub/swiper")
+@Api("轮播图展示")
 public class YdSwiperpicController {
 
     @Autowired
@@ -35,6 +38,7 @@ public class YdSwiperpicController {
      * @author dhj
      * @date 2022/8/20 23:31
     */
+    @ApiOperation(value = "获取轮播图信息",notes = "获取轮播图信息")
     @GetMapping(value = "/{companyid}")
     public Result<List<YdSwiperpic>> getSwiper (@PathVariable(name="companyid") String companyid){
         Result<List<YdSwiperpic>> result = new Result<List<YdSwiperpic>>();

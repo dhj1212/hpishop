@@ -7,7 +7,30 @@ spring:
     url: jdbc:oracle:thin:@localhost:1521:oralin
     username: hpshop
     password: hpshop
-
+    druid:
+      # 连接池的配置信息
+      # 初始化大小，最小空闲连接数，最大活跃数
+      initial-size: 5
+      min-idle: 5
+      maxActive: 20
+      # 配置获取连接等待超时的时间
+      maxWait: 60000
+      # 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒
+      timeBetweenEvictionRunsMillis: 60000
+      # 配置一个连接在池中最小生存的时间，单位是毫秒
+      minEvictableIdleTimeMillis: 300000
+      validationQuery: SELECT 1 FROM DUAL
+      testWhileIdle: true
+      testOnBorrow: false
+      testOnReturn: false
+      # 打开PSCache，是否缓存preparedStatement,并且指定每个连接上PSCache的大小;PSCache对支持游标的数据库性能提升巨大，
+      # 比如说oracle。在mysql下建议关闭。
+      poolPreparedStatements: true
+      maxPoolPreparedStatementPerConnectionSize: 20
+  #针对swagger的配置
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
 mybatis-plus:
   mapper-locations: classpath*:com/hpi/modules/**/xml/*Mapper.xml
   global-config:

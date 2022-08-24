@@ -1,6 +1,6 @@
 package com.hpi.common.vo.api;
 
-import com.hpi.common.CommonConstant.CommonConstant;
+import com.hpi.common.constant.CommonConstant;
 import lombok.Data;
 
 import java.io.Serializable;

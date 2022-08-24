@@ -1,4 +1,4 @@
-package com.hpi.common.CommonConstant;
+package com.hpi.common.constant;
 /**
  * 
  * <pre>
