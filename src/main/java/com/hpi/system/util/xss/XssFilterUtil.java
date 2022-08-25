@@ -81,13 +81,13 @@ public class XssFilterUtil
 	 */
 	public static String stripXss(String value) {
 
-		if (value!=null && value.trim().length()>0) {
+		if (value!=null && value.trim().length()>0  && value.indexOf("script") > -1) {
 			
 			try {
 				value = new String(value.getBytes("UTF-8"),"UTF-8");
 			} catch (UnsupportedEncodingException e) {
 			}
-			
+
 			Matcher matcher = null;
 
 			for (Pattern pattern : getPatterns()) {
@@ -106,6 +106,7 @@ public class XssFilterUtil
 		value = value.replaceAll("&#", "");
 		value = value.replaceAll("<", "");
 		value = value.replaceAll(">", "");
+
 		return value;
 	}
 }

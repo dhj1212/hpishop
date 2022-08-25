@@ -2,16 +2,21 @@ package com.hpi.system.util.xss;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import org.springframework.util.StreamUtils;
+import com.hpi.common.system.exception.AppException;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.tomcat.util.http.fileupload.servlet.ServletFileUpload;
+import org.springframework.web.multipart.commons.CommonsMultipartResolver;
 
 import javax.servlet.ReadListener;
 import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+@Slf4j
 public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 {
 	// 存放JSON数据主体
@@ -21,35 +26,22 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 		//private final String body;
 		private final byte[] body;
 
-		private static final Pattern scriptPattern = Pattern.compile("<script>(.*?)</script>", Pattern.CASE_INSENSITIVE);
-		private static final Pattern script3cPattern = Pattern.compile("%3Cscript%3E(.*?)%3C/script%3E", Pattern.CASE_INSENSITIVE);
-		private static final Pattern srcPattern = Pattern.compile("src[\r\n]*=[\r\n]*\\\'(.*?)\\\'",Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
-		private static final Pattern scriptPattern1 = Pattern.compile("</script>", Pattern.CASE_INSENSITIVE);
-		private static final Pattern scriptPattern2 = Pattern.compile("%3C/script%3E", Pattern.CASE_INSENSITIVE);
-		private static final Pattern scriptPattern3 = Pattern.compile("<script(.*?)>",Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
-		private static final Pattern scriptPattern4 = Pattern.compile("%3Cscript(.*?)%3E",Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
-		private static final Pattern evalPattern = Pattern.compile("eval\\((.*?)\\)",Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
-		private static final Pattern e­Pattern = Pattern.compile("e­xpression\\((.*?)\\)",Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
-		private static final Pattern javascriptPattern = Pattern.compile("javascript:", Pattern.CASE_INSENSITIVE);
-		private static final Pattern vbscriptPattern = Pattern.compile("vbscript:", Pattern.CASE_INSENSITIVE);
-		private static final Pattern onloadPattern = Pattern.compile("onload(.*?)=",Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL);
+		private static String badStrReg =
+			"\\b(and|or)\\b.{1,6}?(=|>|<|\\bin\\b|\\blike\\b)|\\/\\*.+?\\*\\/|<\\s*script\\b|\\bEXEC\\b|UNION.+?SELECT|UPDATE.+?SET|INSERT\\s+INTO.+?VALUES|(SELECT|DELETE).+?FROM|(CREATE|ALTER|DROP|TRUNCATE)\\s+(TABLE|DATABASE)";
+		private static final Pattern sqlPattern = Pattern.compile(badStrReg, Pattern.CASE_INSENSITIVE);
 
 
-		public XssHttpServletRequestWrapper(HttpServletRequest servletRequest) throws IOException {
+	public XssHttpServletRequestWrapper(HttpServletRequest servletRequest) throws IOException {
 			super(servletRequest);
 			orgRequest = servletRequest;
-			InputStream inputStream = servletRequest.getInputStream();
-			body=StreamUtils.copyToByteArray(inputStream);
-		}
-		
-		/**public XssHttpServletRequestWrapper1(HttpServletRequest servletRequest) throws IOException {
-			super(servletRequest);
-
+			//InputStream inputStream = servletRequest.getInputStream();
+			//body=StreamUtils.copyToByteArray(inputStream);
 			StringBuilder stringBuilder = new StringBuilder();
 			BufferedReader bufferedReader = null;
 			try {
 				InputStream inputStream = servletRequest.getInputStream();
-				org.springframework.util.StreamUtils.copyToByteArray(ininputStream);
+				//byte[] inputStream_=org.springframework.util.StreamUtils.copyToByteArray(inputStream);
+				System.out.println("inputStream==="+inputStream);
 				if (inputStream != null) {
 					bufferedReader = new BufferedReader(new InputStreamReader(inputStream,"UTF-8"));
 					char[] charBuffer = new char[128];
@@ -60,8 +52,90 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 				} else {
 					stringBuilder.append("");
 				}
-				
+				String bodyStr = stringBuilder.toString();
+				System.out.println("bodyStr==="+bodyStr);
+				if (bodyStr ==null || bodyStr.trim().length()<=0) {
+					body = bodyStr.getBytes(StandardCharsets.UTF_8);
+				} else {
+					boolean fileUpload=false;
+					boolean isMultipartContent = ServletFileUpload.isMultipartContent(servletRequest);
+					CommonsMultipartResolver commonsMultipartResolver = new CommonsMultipartResolver(servletRequest.getSession().getServletContext());
+					boolean isMultipart = commonsMultipartResolver.isMultipart(servletRequest);
+					if (isMultipartContent || isMultipart) {
+						fileUpload = true;
+					}
+
+					JSONObject bodyJson = JSON.parseObject(bodyStr);
+					JSONObject formDataJson = bodyJson.getJSONObject("formData");
+					String requestUri = super.getRequestURI();
+					if (formDataJson != null) {
+						// 有 formData 参数的请求
+						for (Map.Entry<String, Object> entry : formDataJson.entrySet()) {
+							String paramKey = entry.getKey();
+							Object paramValue = entry.getValue();
+							//System.out.println("paramKey==="+paramKey+";paramValue="+paramValue);
+							if (null == paramValue) {
+								continue;
+							}
+
+							// 咨询管理 编辑保存
+							if (requestUri.contains("/api/inf/insertOrUpdate")) {
+								// content contentText字段不作字符处理
+								if (!"content".equals(paramKey) && !"contentText".equals(paramKey)) {
+									//paramValue = stripXSS(paramValue.toString());
+									paramValue = cleanSQLInject(stripXSS(paramValue!=null ? paramValue.toString():""));
+								}
+							} // 前后台登录
+							else if (requestUri.contains("/login")) {
+								// password 密码字段不作字符处理
+								if (!"password".equals(paramKey)) {
+									paramValue = cleanSQLInject(stripXSS(paramValue!=null ?paramValue.toString():""));
+								}
+							} else {
+								paramValue = stripXSS(paramValue.toString());
+							}
+							System.out.println("paramValue==="+paramValue);
+							formDataJson.put(entry.getKey(), paramValue);
+						}
+						bodyJson.put("formData", formDataJson);
+						if (bodyJson!=null){
+							body = bodyJson.toJSONString().getBytes(StandardCharsets.UTF_8);
+						}else{
+							body = bodyStr.getBytes(StandardCharsets.UTF_8);
+						}
+
+						System.out.println("body------===="+body);
+					} else {
+						// 没有 formData 参数的请求
+						System.out.println("fileUpload==="+fileUpload);
+						if (!fileUpload) {
+							// 获取body中的请求参数
+							JSONObject bjson = JSONObject.parseObject(new String(bodyStr));
+
+							// 校验并过滤xss攻击和sql注入
+							for (Map.Entry<String, Object> entryjson : bjson.entrySet()) {
+								String paramKey = entryjson.getKey();
+								Object paramValue = entryjson.getValue();
+								System.out.println("k:"+paramKey+";vaule:"+paramValue);
+								Object paramValue_ = cleanSQLInject(stripXSS(paramValue!=null ? paramValue.toString():""));
+								if (paramValue!=null && !paramValue.equals(paramValue_)){
+									bjson.put(paramKey,paramValue_);
+									System.out.println("paramValue=="+paramValue_);
+								}
+
+								//throw new AppException("非法的字符"+json.getString(k));
+							}
+							body =bjson.toJSONString().getBytes(StandardCharsets.UTF_8);
+						}else{
+							body = bodyStr.getBytes(StandardCharsets.UTF_8);
+						}
+
+					}
+				}
+
+
 			} catch (IOException ex) {
+
 				throw ex;
 			} finally {
 				if (bufferedReader != null) {
@@ -72,56 +146,11 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 					}
 				}
 			}
-			String bodyStr = stringBuilder.toString();
-			System.out.println("bodyStr==="+bodyStr);
-			if (bodyStr ==null || bodyStr.trim().length()<=0) {
-				body = bodyStr;
-			} else {
 
-				String requestUri = super.getRequestURI();
-				//bodyStr=URLDecoder.decode(bodyStr, "UTF-8");
-				//bodyStr = bodyStr.substring(bodyStr.indexOf("{"));
-				JSONObject bodyJson = JSON.parseObject(bodyStr);
-				JSONObject formDataJson = bodyJson.getJSONObject("formData");
-				System.out.println("formDataJson==="+formDataJson.toJSONString());
-				if (formDataJson != null) {
-					// 有 formData 参数的请求
-					for (Map.Entry<String, Object> entry : formDataJson.entrySet()) {
-						String paramKey = entry.getKey();
-						Object paramValue = entry.getValue();
-						System.out.println("paramKey==="+paramKey+";paramValue="+paramValue);
-						if (null == paramValue) {
-							continue;
-						}
-
-						// 咨询管理 编辑保存
-						if (requestUri.contains("/api/inf/insertOrUpdate")) {
-							// content contentText字段不作字符处理
-							if (!"content".equals(paramKey) && !"contentText".equals(paramKey)) {
-								paramValue = stripXSS(paramValue.toString());
-							}
-						} // 前后台登录
-						else if (requestUri.contains("/loginUser")) {
-							// password 密码字段不作字符处理
-							if (!"password".equals(paramKey)) {
-								paramValue = stripXSS(paramValue.toString());
-							}
-						} else {
-							paramValue = stripXSS(paramValue.toString());
-						}
-						System.out.println("paramValue==="+paramValue);
-						formDataJson.put(entry.getKey(), paramValue);
-					}
-					bodyJson.put("formData", formDataJson);
-					body = bodyJson.toJSONString();
-				} else {
-					// 没有 formData 参数的请求
-					body = bodyStr;
-				}
-			}
 		}
-		**/
-		private String getSqlFliteredValues(String requestUri, String value) {
+		
+
+	/*	private String getSqlFliteredValues(String requestUri, String value) {
 			String result = value;
 			if (requestUri != null && value != null) {
 				try {
@@ -133,7 +162,7 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 				//}
 			}
 			return result;
-		}
+		}*/
 
 		@Override
 		public String[] getParameterValues(String parameter) {
@@ -150,16 +179,17 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 			for (int i = 0; i < count; i++) {
 				// 后台修改密码
 				if (requestUri.contains("/api/user/updateByIdForPs")) {
-					encodedValues[i] = convertJsonValue(values[i], requestUri, "password", "newpassword2", "");
+					//encodedValues[i] = convertJsonValue(values[i], requestUri, "password", "newpassword2", "");
 				} // 后台用户管理 编辑保存
 				else if (requestUri.contains("/api/user/insertOrUpdate")) {
-					encodedValues[i] = convertJsonValue(values[i], requestUri, "password", "oldpassword", "");
+					//encodedValues[i] = convertJsonValue(values[i], requestUri, "password", "oldpassword", "");
 				} else {
 					// 过滤JS攻击
 					String encodeStr = stripXSS(values[i]);
 					System.out.println("encodeStr===============encodeStr=="+encodeStr);
 					// 过滤SQL攻击
-					encodedValues[i] = getSqlFliteredValues(requestUri, encodeStr);
+					//encodedValues[i] = getSqlFliteredValues(requestUri, encodeStr);
+					encodedValues[i] =cleanSQLInject(encodeStr);
 				}
 			}
 
@@ -182,7 +212,8 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 			// 过滤JS攻击
 			value = stripXSS(value);
 			// 过滤SQL攻击
-			value = getSqlFliteredValues(requestUri, value);
+			//value = getSqlFliteredValues(requestUri, value);
+			value=cleanSQLInject(value);
 			return value;
 		}
 
@@ -201,7 +232,7 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 			// 过滤JS攻击
 			value = stripXSS(value);
 			// 过滤SQL攻击
-			value = getSqlFliteredValues(requestUri, value);
+			value=cleanSQLInject(value);
 			return value;
 		}
 
@@ -220,48 +251,41 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 		 * value.replaceAll("[?]", "[" + "?]"); return value; }
 		 */
 		private String stripXSS(String value) {
-			System.out.println("stripXSS======value========="+value);
-			if (value != null && value.indexOf("script") > -1) {
-				// NOTE: It's highly recommended to use the ESAPI library and
-				// uncomment the following line to
-				// avoid encoded attacks.
-				// value = ESAPI.encoder().canonicalize(value);
-				// Avoid null characters
-				value = value.replaceAll("", "");
-				// Avoid anything between script tags
+			String temp = XssFilterUtil.stripXss(value);
+			System.out.println("temp=="+temp);
+			if (!value.equals(temp)) {
 
-				value = scriptPattern.matcher(value).replaceAll("");
-				value = script3cPattern.matcher(value).replaceAll("");
-				// Avoid anything in a src="..." type of e­xpression
-				value = srcPattern.matcher(value).replaceAll("");
+				log.error("xss攻击检查：参数含有非法攻击字符，已禁止继续访问,请检查参数，-->" + value);
 
-				//value = scriptPattern.matcher(value).replaceAll("");
-				// Remove any lonesome </script> tag
-				value = scriptPattern1.matcher(value).replaceAll("");
-
-				value = scriptPattern2.matcher(value).replaceAll("");
-
-				value = scriptPattern3.matcher(value).replaceAll("");
-				value = scriptPattern4.matcher(value).replaceAll("");
-				// Avoid eval(...) e­xpressions
-				value = evalPattern.matcher(value).replaceAll("");
-				// Avoid e­xpression(...) e­xpressions
-				value = e­Pattern.matcher(value).replaceAll("");
-				// Avoid javascript:... e­xpressions
-				value = javascriptPattern.matcher(value).replaceAll("");
-				// Avoid vbscript:... e­xpressions
-				value = vbscriptPattern.matcher(value).replaceAll("");
-				// Avoid onload= e­xpressions
-				value = onloadPattern.matcher(value).replaceAll("");
+				throw new AppException("参数含有非法字符" );
 			}
+			return temp;
+		}
+		public String cleanSQLInject(String value) {
+			// 非法sql注入正则
+			//Pattern sqlPattern = Pattern.compile(badStrReg, Pattern.CASE_INSENSITIVE);
 
-			value = XssFilterUtil.stripXss(value);
-			return value;
+			/*Matcher matcher = sqlPattern.matcher(src.toLowerCase());
+			if (matcher.find()) {
+				log.error("sql注入检查：输入信息存在SQL攻击！");
+				src = matcher.replaceAll("");
+				throw new AppException("参数含有非法攻击字符，已禁止继续访问");
+			}*/
+			if (value!=null && value.length()>0){
+				String value_=cleanSQL(value);
+				if (value.equals(value_)){
+					log.error("sql注入检查：输入信息存在SQL攻击，请检查参数："+value);
+					throw new AppException("参数含有非法字符");
+				}
+				return value_;
+			}else{
+				return value;
+			}
 		}
 
-		/*private String cleanSQL(String value) {
+		private String cleanSQL(String value) {
 
-			String badStr = "'|and|exec|execute|insert|select|delete|update|count|drop|%|chr|mid|master|truncate|"
+			String badStr = "'|exec|execute|insert|select|delete|update|count|drop|%|chr|mid|master|truncate|"
 					+ "char|declare|sitename|net user|xp_cmdshell|;|or|-|+|,|like'|and|exec|execute|insert|create|drop|"
 					+ "table|from|grant|use|group_concat|column_name|"
 					+ "information_schema.columns|table_schema|union|where|select|delete|update|order|by|count|"
@@ -270,59 +294,17 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 			String[] badStrs = badStr.split("\\|");
 			for (int i = 0; i < badStrs.length; i++) {
 				if (value.toLowerCase().trim().contains((badStrs[i]))) {
-					value = "forbid";
+					value = value.replaceAll(badStrs[i],"");
 					break;
 				}
 			}
 			return value;
 		}
-*/
-		/**private String cleanXSS(String value) {
-			// You'll need to remove the spaces from the html entities below
-			value = value.replaceAll("<", "& lt;").replaceAll(">", "& gt;");
-			// value = value.replaceAll("\\(", "& #40;").replaceAll("\\)", "&
-			// #41;");
-			// value = value.replaceAll("'", "& #39;");
-			value = value.replaceAll("eval\\((.*)\\)", "");
-			value = value.replaceAll("[\\\"\\\'][\\s]*javascript:(.*)[\\\"\\\']", "\"\"");
-			value = value.replaceAll("script", "");
-			// value = value.replaceAll("[*]", "[" + "*]");
-			// value = value.replaceAll("[+]", "[" + "+]");
-			// value = value.replaceAll("[?]", "[" + "?]");
 
-			// replace sql 这里可以自由发挥
-			String[] values = value.split(" ");
 
-			String badStr = "'|and|exec|execute|insert|select|delete|update|count|drop|%|chr|mid|master|truncate|"
-					+ "char|declare|sitename|net user|xp_cmdshell|;|or|-|+|,|like'|and|exec|execute|insert|create|drop|"
-					+ "table|from|grant|use|group_concat|column_name|"
-					+ "information_schema.columns|table_schema|union|where|select|delete|update|order|by|count|"
-					+ "chr|mid|master|truncate|char|declare|or|;|-|--|,|like|//|/|%|#";
-
-			String[] badStrs = badStr.split("\\|");
-			for (int i = 0; i < badStrs.length; i++) {
-				for (int j = 0; j < values.length; j++) {
-					if (values[j].equalsIgnoreCase(badStrs[i])) {
-						values[j] = "forbid";
-					}
-				}
-			}
-			StringBuilder sb = new StringBuilder();
-			for (int i = 0; i < values.length; i++) {
-				if (i == values.length - 1) {
-					sb.append(values[i]);
-				} else {
-					sb.append(values[i] + " ");
-				}
-			}
-
-			value = sb.toString();
-
-			return value;
-		}**/
-		
 		@Override    
-	    public ServletInputStream getInputStream() throws IOException {    
+	    public ServletInputStream getInputStream() throws IOException {
+
 	        final ByteArrayInputStream bais = new ByteArrayInputStream(body);    
 	        return new ServletInputStream() {    
 	    
@@ -352,33 +334,7 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 	    }
 
 		
-		/**@Override
-		public ServletInputStream getInputStream() throws IOException {
-			final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(body.getBytes("UTF-8"));
-			ServletInputStream servletInputStream = new ServletInputStream() {
-				@Override
-				public int read() throws IOException {
-					return byteArrayInputStream.read();
-				}
 
-				@Override
-				public boolean isFinished() {
-					return false;
-				}
-
-				@Override
-				public boolean isReady() {
-					return false;
-				}
-
-				@Override
-				public void setReadListener(ReadListener listener) {
-
-				}
-			};
-			return servletInputStream;
-		}
-		**/
 		@Override
 		public BufferedReader getReader() throws IOException {
 			return new BufferedReader(new InputStreamReader(this.getInputStream()));
@@ -410,10 +366,11 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 	        return req;
 	    }
 
-	    
+
+
 		/**
 		 * 过滤特殊请求参数特殊字符
-		 * 
+		 *
 		 * @param jsonString
 		 * @param requestUri
 		 * @param key1
@@ -438,7 +395,8 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 					// 过滤JS攻击
 					paramValue = stripXSS(paramValue.toString());
 					// 过滤SQL攻击
-					paramValue = getSqlFliteredValues(requestUri, paramValue.toString());
+					//paramValue = getSqlFliteredValues(requestUri, paramValue.toString());
+					paramValue=cleanSQL(paramValue.toString());
 				}
 				formDataJson.put(entry.getKey(), paramValue);
 			}

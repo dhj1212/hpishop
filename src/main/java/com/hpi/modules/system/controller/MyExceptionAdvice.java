@@ -13,6 +13,7 @@ package com.hpi.modules.system.controller;/**
  * @date 2022/8/2417:10
  */
 
+import com.hpi.common.util.CommUtils;
 import com.hpi.common.vo.api.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,16 +47,22 @@ public class MyExceptionAdvice implements ErrorController {
     @RequestMapping("/error")
     public Result<?> getErrorPath() {
         Integer statusCode = (Integer) request.getAttribute("javax.servlet.error.status_code");
+        String message =  String.valueOf(request.getAttribute("javax.servlet.error.exception"));
+        if (CommUtils.isNotEmpty(message)){
+            message="，"+message;
+        }
         switch (statusCode) {
             case 404:
                 return Result.error(404,"请求不存在");
             case 400:
                 //return "/400.html";
-                return Result.error(400,"系统发生错误");
+                return Result.error(400,"系统发生错误"+message);
             case 403:
-                return Result.error(403,"系统发生错误");
+                return Result.error(403,"系统发生错误"+message);
+            case 500:
+                return Result.error(500,"系统发生错误"+message);
             default:
-                return Result.error(500,"系统发生错误");
+                return Result.error(505,"系统发生错误，"+message);
         }
     }
 

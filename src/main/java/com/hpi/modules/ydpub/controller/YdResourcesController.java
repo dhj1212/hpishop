@@ -1,5 +1,6 @@
 package com.hpi.modules.ydpub.controller;
 
+import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hpi.common.util.CommUtils;
 import com.hpi.common.vo.api.Result;
@@ -7,10 +8,7 @@ import com.hpi.modules.ydpub.entity.YdResources;
 import com.hpi.modules.ydpub.util.FindResourcesChildrenUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -115,6 +113,31 @@ public class YdResourcesController {
         result.setResult(FindResourcesChildrenUtil.getResourcesTree(list));
         result.setSuccess(true);
         return result;
+    }
+    @PostMapping("/edit")
+    public Result<?> edit(@RequestBody JSONObject jsonObject) {
+
+        System.out.println("jsonObject==="+jsonObject);
+        String userid=jsonObject.getString("id");
+        String name=jsonObject.getString("name");
+        System.out.println("userid==="+userid);
+        System.out.println("name==="+name);
+        if (CommUtils.isEmpty(userid)){
+            return Result.error("用户ID不能为空");
+        }
+
+
+        return Result.ok();
+    }
+
+    @GetMapping("/getuser")
+    public Result<?> getUserByUserId(@RequestParam(name="id",required=true) String userid) {
+        //Result<SysUser> result = new Result<SysUser>();
+        if (CommUtils.isEmpty(userid)){
+            return Result.error("用户ID不能为空");
+        }
+        System.out.println("userid==="+userid);
+        return Result.ok();
     }
 
 
