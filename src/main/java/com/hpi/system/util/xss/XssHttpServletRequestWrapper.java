@@ -2,6 +2,7 @@ package com.hpi.system.util.xss;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.hpi.common.constant.CommonConstant;
 import com.hpi.common.system.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.servlet.ServletFileUpload;
@@ -29,7 +30,11 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 		private static String badStrReg =
 			"\\b(and|or)\\b.{1,6}?(=|>|<|\\bin\\b|\\blike\\b)|\\/\\*.+?\\*\\/|<\\s*script\\b|\\bEXEC\\b|UNION.+?SELECT|UPDATE.+?SET|INSERT\\s+INTO.+?VALUES|(SELECT|DELETE).+?FROM|(CREATE|ALTER|DROP|TRUNCATE)\\s+(TABLE|DATABASE)";
 		private static final Pattern sqlPattern = Pattern.compile(badStrReg, Pattern.CASE_INSENSITIVE);
-
+		private static String badSqlStr = "'|exec|execute|insert|select|delete|update|count|drop|mid|master|truncate|"
+			+ "char|declare|sitename|net user|xp_cmdshell|,|like'|and|create|"
+			+ "table|from|grant|group_concat|column_name|"
+			+ "information_schema.columns|table_schema|union|where|order|"
+			+ "chr|;|--|,|like|//|/|%|#";
 
 	public XssHttpServletRequestWrapper(HttpServletRequest servletRequest) throws IOException {
 			super(servletRequest);
@@ -224,15 +229,18 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 		@Override
 		public String getHeader(String name) {
 			String value = super.getHeader(name);
-			System.out.println("getHeader======value========="+value);
+
 			String requestUri = super.getRequestURI();
 			if (value == null){
 				return null;
 			}
 			// 过滤JS攻击
 			value = stripXSS(value);
-			// 过滤SQL攻击
-			value=cleanSQLInject(value);
+			if (!CommonConstant.AUTHORIZATION_TOKEN.equals(name)){
+				// 过滤SQL攻击
+				value=cleanSQLInject(value);
+			}
+
 			return value;
 		}
 
@@ -273,7 +281,7 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 			}*/
 			if (value!=null && value.length()>0){
 				String value_=cleanSQL(value);
-				if (value.equals(value_)){
+				if (!value.equals(value_)){
 					log.error("sql注入检查：输入信息存在SQL攻击，请检查参数："+value);
 					throw new AppException("参数含有非法字符");
 				}
@@ -284,16 +292,10 @@ public class XssHttpServletRequestWrapper extends HttpServletRequestWrapper
 		}
 
 		private String cleanSQL(String value) {
-
-			String badStr = "'|exec|execute|insert|select|delete|update|count|drop|%|chr|mid|master|truncate|"
-					+ "char|declare|sitename|net user|xp_cmdshell|;|or|-|+|,|like'|and|exec|execute|insert|create|drop|"
-					+ "table|from|grant|use|group_concat|column_name|"
-					+ "information_schema.columns|table_schema|union|where|select|delete|update|order|by|count|"
-					+ "chr|mid|master|truncate|char|declare|or|;|-|--|,|like|//|/|%|#";
-
-			String[] badStrs = badStr.split("\\|");
+			String[] badStrs = badSqlStr.split("\\|");
 			for (int i = 0; i < badStrs.length; i++) {
 				if (value.toLowerCase().trim().contains((badStrs[i]))) {
+					log.info("存在方法字符："+badStrs[i]);
 					value = value.replaceAll(badStrs[i],"");
 					break;
 				}

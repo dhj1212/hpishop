@@ -114,6 +114,7 @@ public class YdResourcesController {
         result.setSuccess(true);
         return result;
     }
+
     @PostMapping("/edit")
     public Result<?> edit(@RequestBody JSONObject jsonObject) {
 
@@ -125,8 +126,6 @@ public class YdResourcesController {
         if (CommUtils.isEmpty(userid)){
             return Result.error("用户ID不能为空");
         }
-
-
         return Result.ok();
     }
 
@@ -139,8 +138,5 @@ public class YdResourcesController {
         System.out.println("userid==="+userid);
         return Result.ok();
     }
-
-
-
 
 }

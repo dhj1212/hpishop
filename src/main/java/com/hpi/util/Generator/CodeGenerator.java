@@ -36,7 +36,7 @@ public class CodeGenerator
         String author = "dhj";
         //String moduleName =scanner("模块名");
         String moduleName="ydpub";
-        String tables="YD_RESOURCES";
+        String tables="PUB_GOODS";
 
         String outputDir = projectPath + "/src/main/java" ;
         String parentPackage = "com.hpi.modules";
